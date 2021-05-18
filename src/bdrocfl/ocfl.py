@@ -6,6 +6,12 @@ import os
 import xml.etree.ElementTree as ET
 
 
+class ObjectNotFound(RuntimeError):
+    pass
+
+class ObjectDeleted(RuntimeError):
+    pass
+
 class InventoryError(RuntimeError):
     pass
 
@@ -80,7 +86,12 @@ class Object:
         self.pid = pid
         self._fallback_to_version_directory = fallback_to_version_directory
         self._object_path = object_path(self.pid)
+        if not os.path.exists(self._object_path):
+            raise ObjectNotFound()
         self._inventory = self._get_inventory(self._object_path)
+        self.head_version = self._inventory['head']
+        if not self._inventory['versions'][self.head_version]['state']:
+            raise ObjectDeleted()
         self._files_info = None
 
     def _get_inventory(self, object_path):
@@ -133,10 +144,6 @@ class Object:
                     file_info['download_filename'] = download_filename
                     info[filepath] = file_info
         return info
-
-    @property
-    def head_version(self):
-        return self._inventory['head']
 
     @property
     def created(self):

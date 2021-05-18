@@ -76,6 +76,29 @@ class TestOcfl(unittest.TestCase):
         with self.assertRaises(ocfl.DateTimeError):
             ocfl.utc_datetime_from_string('2021-03-23T06:20:30')
 
+    def test_object_not_found(self):
+        with self.assertRaises(ocfl.ObjectNotFound):
+            ocfl.Object('testsuite:abcd1234')
+
+    def test_object_deleted(self):
+        object_path = os.path.join(ocfl.OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
+        os.makedirs(object_path)
+        inventory = SIMPLE_INVENTORY.copy()
+        inventory['head'] = 'v4'
+        inventory['versions']['v4'] = {
+            "created": "2018-10-05T12:00:00Z",
+            "message": "delete object",
+            "state": {},
+            "user": {
+              "address": "alice@example.org",
+              "name": "Alice"
+            }
+        }
+        with open(os.path.join(object_path, 'inventory.json'), 'wb') as f:
+            f.write(json.dumps(inventory).encode('utf8'))
+        with self.assertRaises(ocfl.ObjectDeleted):
+            ocfl.Object('testsuite:abcd1234')
+
     def test_object(self):
         object_path = os.path.join(ocfl.OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
         os.makedirs(object_path)
