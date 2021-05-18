@@ -13,6 +13,7 @@ SIMPLE_INVENTORY = {
   "manifest": {
     "d404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db": [ "v1/content/file.txt" ],
     "d716a4188569b68ab1b6dfac178e570114cdf0ea3a1cc0e31486c3e41241bc6a76424e8c37ab26f096fc85ef9886c8cb634187f4fddff645fb099f1ff54c6b8c": [ "v3/content/something" ],
+    "e9a02f16c5514f23a49eec017e35e08e5c3e7414b33456f17502232c6a6e7a9196f831ab0764954fcb8df398c494d5091c64356dfe42e831b6949eab2449371e": [ "v3/content/RELS-INT" ],
   },
   "type": "https://ocfl.io/1.0/spec/#inventory",
   "versions": {
@@ -42,6 +43,7 @@ SIMPLE_INVENTORY = {
       "state": {
         "d404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db": [ "renamed_file.txt" ],
         "d716a4188569b68ab1b6dfac178e570114cdf0ea3a1cc0e31486c3e41241bc6a76424e8c37ab26f096fc85ef9886c8cb634187f4fddff645fb099f1ff54c6b8c": [ "something" ],
+        "e9a02f16c5514f23a49eec017e35e08e5c3e7414b33456f17502232c6a6e7a9196f831ab0764954fcb8df398c494d5091c64356dfe42e831b6949eab2449371e": [ "RELS-INT" ],
       },
       "user": {
         "address": "alice@example.org",
@@ -83,12 +85,22 @@ class TestOcfl(unittest.TestCase):
         v3_content_path = os.path.join(object_path, 'v3', 'content')
         file_txt_path = os.path.join(v1_content_path, 'file.txt')
         something_path = os.path.join(v3_content_path, 'something')
+        rels_int_path = os.path.join(v3_content_path, 'RELS-INT')
         os.makedirs(v1_content_path)
         os.makedirs(v3_content_path)
+        rels_int = '''<rdf:RDF xmlns:ns1="info:fedora/fedora-system:def/model#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+  <rdf:Description rdf:about="info:fedora/testsuite:abcd1234/something">
+    <ns1:downloadFilename>some image.jpg</ns1:downloadFilename>
+    <rdf:type rdf:resource="http://pcdm.org/use#OriginalFile"/>
+  </rdf:Description>
+</rdf:RDF>'''
+
         with open(file_txt_path, 'wb') as f:
             f.write(b'1234')
         with open(something_path, 'wb') as f:
             f.write(b'abcdefg')
+        with open(rels_int_path, 'wb') as f:
+            f.write(rels_int.encode('utf8'))
         o = ocfl.Object('testsuite:abcd1234')
         self.assertEqual(o.get_path_to_file('renamed_file.txt'), file_txt_path)
         with self.assertRaises(FileNotFoundError):
@@ -99,8 +111,38 @@ class TestOcfl(unittest.TestCase):
         self.assertEqual(o.created, datetime(2018, 10, 2, 12, 0, 0, tzinfo=timezone.utc))
         self.assertEqual(o.last_modified, datetime(2018, 10, 4, 12, 0, 0, tzinfo=timezone.utc))
 
-        self.assertEqual(sorted(o.filenames), ['renamed_file.txt', 'something'])
-        self.assertEqual(sorted(o.all_filenames), ['file.txt', 'renamed_file.txt', 'something'])
+        self.assertEqual(sorted(o.filenames), ['RELS-INT', 'renamed_file.txt', 'something'])
+        self.assertEqual(sorted(o.all_filenames), ['RELS-INT', 'file.txt', 'renamed_file.txt', 'something'])
+        self.maxDiff = None
+        self.assertEqual(o.get_files_info(), {
+            'RELS-INT': {
+                'state': 'A',
+                'size': 347,
+                'checksum': 'e9a02f16c5514f23a49eec017e35e08e5c3e7414b33456f17502232c6a6e7a9196f831ab0764954fcb8df398c494d5091c64356dfe42e831b6949eab2449371e',
+                'checksum_type': 'SHA-512',
+                'mimetype': 'application/octet-stream',
+                'download_filename': 'RELS-INT',
+                'last_modified': datetime(2018, 10, 4, 12, 0, 0, tzinfo=timezone.utc),
+            },
+            'renamed_file.txt': {
+                'state': 'A',
+                'size': 4,
+                'checksum': 'd404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db',
+                'checksum_type': 'SHA-512',
+                'mimetype': 'text/plain',
+                'download_filename': 'renamed_file.txt',
+                'last_modified': datetime(2018, 10, 4, 12, 0, 0, tzinfo=timezone.utc),
+            },
+            'something': {
+                'state': 'A',
+                'size': 7,
+                'checksum': 'd716a4188569b68ab1b6dfac178e570114cdf0ea3a1cc0e31486c3e41241bc6a76424e8c37ab26f096fc85ef9886c8cb634187f4fddff645fb099f1ff54c6b8c',
+                'checksum_type': 'SHA-512',
+                'mimetype': 'image/jpeg',
+                'download_filename': 'some image.jpg',
+                'last_modified': datetime(2018, 10, 4, 12, 0, 0, tzinfo=timezone.utc),
+            },
+        })
 
     def test_root_inventory_error(self):
         object_path = os.path.join(ocfl.OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
@@ -126,7 +168,7 @@ class TestOcfl(unittest.TestCase):
             f.write(json.dumps(SIMPLE_INVENTORY).encode('utf8'))
         o = ocfl.Object('testsuite:abcd1234')
         self.assertEqual(o.head_version, 'v3')
-        self.assertEqual(sorted(o.filenames), ['renamed_file.txt', 'something'])
+        self.assertEqual(sorted(o.filenames), ['RELS-INT', 'renamed_file.txt', 'something'])
 
         #check that we can turn off the feature to fall back to the version directory
         with self.assertRaises(ocfl.InventoryError):

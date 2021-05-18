@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
-import json
-import os
 import hashlib
+import json
+import mimetypes
+import os
+import xml.etree.ElementTree as ET
 
 
 class InventoryError(RuntimeError):
@@ -19,6 +21,35 @@ def get_env_variable(var):
 
 
 OCFL_ROOT = get_env_variable('OCFL_ROOT')
+RELS_INT_NS = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'ns1': 'info:fedora/fedora-system:def/model#'}
+DNG_MIMETYPE = 'image/x-adobe-dng'
+JS_MIMETYPE = 'application/javascript'
+MKV_MIMETYPE = 'video/x-matroska'
+
+mimetypes.add_type(DNG_MIMETYPE, '.dng', strict=False)
+mimetypes.add_type(JS_MIMETYPE, '.js', strict=False)
+mimetypes.add_type(MKV_MIMETYPE, '.mkv', strict=False)
+
+
+def get_mimetype_from_filename(filename):
+    if filename.endswith('.tei.xml') or filename.endswith('.tei'):
+        return 'application/tei+xml'
+    if '.' not in filename:
+        filename = 'a.%s' % filename
+    guessed, _ = mimetypes.guess_type(filename, strict=False)
+    if guessed:
+        return guessed
+    else:
+        return 'application/octet-stream'
+
+
+def get_download_filename_from_rels_int(rels_int_root, pid, filepath):
+    if rels_int_root:
+        for description in rels_int_root.findall('rdf:Description', RELS_INT_NS):
+            if description.attrib.get('{http://www.w3.org/1999/02/22-rdf-syntax-ns#}about') == f'info:fedora/{pid}/{filepath}':
+                for child in description:
+                    if child.tag == '{info:fedora/fedora-system:def/model#}downloadFilename':
+                        return os.path.basename(child.text)
 
 
 def object_path(pid):
@@ -50,7 +81,7 @@ class Object:
         self._fallback_to_version_directory = fallback_to_version_directory
         self._object_path = object_path(self.pid)
         self._inventory = self._get_inventory(self._object_path)
-        self._files = None
+        self._files_info = None
 
     def _get_inventory(self, object_path):
         inventory_path = os.path.join(object_path, 'inventory.json')
@@ -77,23 +108,31 @@ class Object:
 
     def _get_files_info(self):
         info = {}
+        try:
+            rels_int_path = self.get_path_to_file('RELS-INT')
+            with open(rels_int_path, 'rb') as rels_int_file:
+                rels_int_bytes = rels_int_file.read()
+            rels_int_root = ET.fromstring(rels_int_bytes)
+        except FileNotFoundError:
+            rels_int_root = None
         for checksum, filepaths in self._inventory['versions'][self.head_version]['state'].items():
-            for f in filepaths:
-                if f not in info:
-                    info[f] = {'state': 'A'}
-        reversed_version_nums = list(reversed(list(self._inventory['versions'].keys()))) #eg. 'v3', 'v2', 'v1'
-        for v in reversed_version_nums[1:]:
-            for checksum, filepaths in self._inventory['versions'][v]['state'].items():
-                for f in filepaths:
-                    if f not in info:
-                        info[f] = {'state': 'D'}
+            for filepath in filepaths:
+                if filepath not in info:
+                    file_info = {
+                            'last_modified': utc_datetime_from_string(self._inventory['versions'][self.head_version]['created']),
+                            'checksum': checksum,
+                            'checksum_type': 'SHA-512',
+                            'state': 'A',
+                            'size': os.stat(os.path.join(self._object_path, self._inventory['manifest'][checksum][0])).st_size,
+                        }
+                    download_filename = get_download_filename_from_rels_int(rels_int_root, self.pid, filepath)
+                    if not download_filename:
+                        download_filename = filepath
+                    mimetype = get_mimetype_from_filename(download_filename)
+                    file_info['mimetype'] = mimetype
+                    file_info['download_filename'] = download_filename
+                    info[filepath] = file_info
         return info
-
-    @property
-    def _files_info(self):
-        if not self._files:
-            self._files = self._get_files_info()
-        return self._files
 
     @property
     def head_version(self):
@@ -128,4 +167,16 @@ class Object:
 
     @property
     def all_filenames(self):
-        return [f for f in self._files_info.keys()]
+        filenames = set()
+        reversed_version_nums = list(reversed(list(self._inventory['versions'].keys()))) #eg. 'v3', 'v2', 'v1'
+        for v in reversed_version_nums:
+            for checksum, filepaths in self._inventory['versions'][v]['state'].items():
+                for f in filepaths:
+                    filenames.add(f)
+        return filenames
+
+    def get_files_info(self):
+        #returns file information for *active* files
+        if not self._files_info:
+            self._files_info = self._get_files_info()
+        return self._files_info
