@@ -4,6 +4,9 @@ import os
 import hashlib
 
 
+class InventoryError(RuntimeError):
+    pass
+
 class DateTimeError(RuntimeError):
     pass
 
@@ -42,16 +45,34 @@ def utc_datetime_from_string(s):
 
 class Object:
 
-    def __init__(self, pid):
+    def __init__(self, pid, fallback_to_version_directory=True):
         self.pid = pid
+        self._fallback_to_version_directory = fallback_to_version_directory
         self._object_path = object_path(self.pid)
         self._inventory = self._get_inventory(self._object_path)
         self._files = None
 
     def _get_inventory(self, object_path):
         inventory_path = os.path.join(object_path, 'inventory.json')
-        with open(inventory_path, 'rb') as f:
-            data = f.read().decode('utf8')
+        try:
+            with open(inventory_path, 'rb') as f:
+                data = f.read().decode('utf8')
+        except FileNotFoundError:
+            if self._fallback_to_version_directory:
+                version_dirs = []
+                with os.scandir(object_path) as it:
+                    for entry in it:
+                        if entry.is_dir() and entry.name.startswith('v'):
+                            version_dirs.append(entry.name)
+                version_dirs.sort(key=lambda name: int(name.replace('v', '')), reverse=True)
+                inventory_path = os.path.join(object_path, version_dirs[0], 'inventory.json')
+                try:
+                    with open(inventory_path, 'rb') as f:
+                        data = f.read().decode('utf8')
+                except FileNotFoundError:
+                    raise InventoryError(f'{self.pid} missing root inventory and {version_dirs[0]} inventory')
+            else:
+                raise InventoryError(f'{self.pid} missing root inventory - not trying version directory')
         return json.loads(data)
 
     def _get_files_info(self):

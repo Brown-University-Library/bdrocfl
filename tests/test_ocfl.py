@@ -101,3 +101,33 @@ class TestOcfl(unittest.TestCase):
 
         self.assertEqual(sorted(o.filenames), ['renamed_file.txt', 'something'])
         self.assertEqual(sorted(o.all_filenames), ['file.txt', 'renamed_file.txt', 'something'])
+
+    def test_root_inventory_error(self):
+        object_path = os.path.join(ocfl.OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
+        os.makedirs(object_path)
+        v1_content_path = os.path.join(object_path, 'v1', 'content')
+        v3_content_path = os.path.join(object_path, 'v3', 'content')
+        file_txt_path = os.path.join(v1_content_path, 'file.txt')
+        something_path = os.path.join(v3_content_path, 'something')
+        os.makedirs(v1_content_path)
+        os.makedirs(v3_content_path)
+        with open(file_txt_path, 'wb') as f:
+            f.write(b'1234')
+        with open(something_path, 'wb') as f:
+            f.write(b'abcdefg')
+
+        #no version inventory to fallback to
+        with self.assertRaises(ocfl.InventoryError):
+            ocfl.Object('testsuite:abcd1234')
+
+        #now verify that version inventory fallback works
+        v3_inventory_path = os.path.join(object_path, 'v3', 'inventory.json')
+        with open(v3_inventory_path, 'wb') as f:
+            f.write(json.dumps(SIMPLE_INVENTORY).encode('utf8'))
+        o = ocfl.Object('testsuite:abcd1234')
+        self.assertEqual(o.head_version, 'v3')
+        self.assertEqual(sorted(o.filenames), ['renamed_file.txt', 'something'])
+
+        #check that we can turn off the feature to fall back to the version directory
+        with self.assertRaises(ocfl.InventoryError):
+            ocfl.Object('testsuite:abcd1234', fallback_to_version_directory=False)
