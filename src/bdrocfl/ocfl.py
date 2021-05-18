@@ -85,10 +85,10 @@ class Object:
     def __init__(self, pid, fallback_to_version_directory=True):
         self.pid = pid
         self._fallback_to_version_directory = fallback_to_version_directory
-        self._object_path = object_path(self.pid)
-        if not os.path.exists(self._object_path):
+        self.object_path = object_path(self.pid)
+        if not os.path.exists(self.object_path):
             raise ObjectNotFound()
-        self._inventory = self._get_inventory(self._object_path)
+        self._inventory = self._get_inventory(self.object_path)
         self.head_version = self._inventory['head']
         if not self._inventory['versions'][self.head_version]['state']:
             raise ObjectDeleted()
@@ -134,7 +134,7 @@ class Object:
                             'checksum': checksum,
                             'checksum_type': 'SHA-512',
                             'state': 'A',
-                            'size': os.stat(os.path.join(self._object_path, self._inventory['manifest'][checksum][0])).st_size,
+                            'size': os.stat(os.path.join(self.object_path, self._inventory['manifest'][checksum][0])).st_size,
                         }
                     download_filename = get_download_filename_from_rels_int(rels_int_root, self.pid, filepath)
                     if not download_filename:
@@ -160,7 +160,7 @@ class Object:
         for checksum, files in self._inventory['versions'][version]['state'].items():
             for f in files:
                 if f == filename:
-                    return os.path.join(self._object_path, self._inventory['manifest'][checksum][0])
+                    return os.path.join(self.object_path, self._inventory['manifest'][checksum][0])
         raise FileNotFoundError(f'no {filename} file in version {version}')
 
     @property
