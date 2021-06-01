@@ -94,6 +94,11 @@ class Object:
             raise ObjectDeleted()
         self._files_info = None
 
+    @staticmethod
+    def reversed_version_numbers(inventory):
+        #have to order based on the ints, not based on the order of the keys in the dict
+        return list(reversed(sorted(list(inventory['versions'].keys()), key=lambda key: int(key.replace('v', '')))))
+
     def _get_inventory(self, object_path):
         inventory_path = os.path.join(object_path, 'inventory.json')
         try:
@@ -148,7 +153,7 @@ class Object:
         file_handled_mapping = {} #tells us we've already set the correct last_modified time for a filepath, so don't update it again
         for filepath in info.keys():
             file_handled_mapping[filepath] = False
-        for version_num in list(reversed(list(self._inventory['versions'].keys())))[1:]: #already handled head version
+        for version_num in Object.reversed_version_numbers(self._inventory)[1:]: #already handled head version
             for checksum, filepaths in self._inventory['versions'][version_num]['state'].items():
                 for filepath in filepaths:
                     if filepath in info:
@@ -163,7 +168,6 @@ class Object:
 
     @property
     def last_modified(self):
-        last_version = list(self._inventory['versions'].keys())[-1]
         return utc_datetime_from_string(self._inventory['versions'][self.head_version]['created'])
 
     def get_path_to_file(self, filename, version=None):
@@ -187,8 +191,7 @@ class Object:
     @property
     def all_filenames(self):
         filenames = set()
-        reversed_version_nums = list(reversed(list(self._inventory['versions'].keys()))) #eg. 'v3', 'v2', 'v1'
-        for v in reversed_version_nums:
+        for v in Object.reversed_version_numbers(self._inventory):
             for checksum, filepaths in self._inventory['versions'][v]['state'].items():
                 for f in filepaths:
                     filenames.add(f)

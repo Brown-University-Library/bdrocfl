@@ -30,6 +30,19 @@ SIMPLE_INVENTORY = {
         "name": "Alice"
       }
     },
+    "v4": {
+      "created": "2018-10-05T12:00:00Z",
+      "message": "add another file (duplicate)",
+      "state": {
+        "d404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db": [ "renamed_file.txt" ],
+        "d716a4188569b68ab1b6dfac178e570114cdf0ea3a1cc0e31486c3e41241bc6a76424e8c37ab26f096fc85ef9886c8cb634187f4fddff645fb099f1ff54c6b8c": [ "something", "something else" ],
+        "e9a02f16c5514f23a49eec017e35e08e5c3e7414b33456f17502232c6a6e7a9196f831ab0764954fcb8df398c494d5091c64356dfe42e831b6949eab2449371e": [ "RELS-INT" ],
+      },
+      "user": {
+        "address": "alice@example.org",
+        "name": "Alice"
+      }
+    },
     "v2": {
       "created": "2018-10-03T12:00:00Z",
       "message": "remove file",
@@ -45,19 +58,6 @@ SIMPLE_INVENTORY = {
       "state": {
         "d404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db": [ "renamed_file.txt" ],
         "d716a4188569b68ab1b6dfac178e570114cdf0ea3a1cc0e31486c3e41241bc6a76424e8c37ab26f096fc85ef9886c8cb634187f4fddff645fb099f1ff54c6b8c": [ "something" ],
-        "e9a02f16c5514f23a49eec017e35e08e5c3e7414b33456f17502232c6a6e7a9196f831ab0764954fcb8df398c494d5091c64356dfe42e831b6949eab2449371e": [ "RELS-INT" ],
-      },
-      "user": {
-        "address": "alice@example.org",
-        "name": "Alice"
-      }
-    },
-    "v4": {
-      "created": "2018-10-05T12:00:00Z",
-      "message": "add another file (duplicate)",
-      "state": {
-        "d404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db": [ "renamed_file.txt" ],
-        "d716a4188569b68ab1b6dfac178e570114cdf0ea3a1cc0e31486c3e41241bc6a76424e8c37ab26f096fc85ef9886c8cb634187f4fddff645fb099f1ff54c6b8c": [ "something", "something else" ],
         "e9a02f16c5514f23a49eec017e35e08e5c3e7414b33456f17502232c6a6e7a9196f831ab0764954fcb8df398c494d5091c64356dfe42e831b6949eab2449371e": [ "RELS-INT" ],
       },
       "user": {
@@ -90,6 +90,10 @@ class TestOcfl(unittest.TestCase):
         self.assertEqual(dt, datetime(2021, 3, 23, 10, 20, 30, 522328, tzinfo=timezone.utc))
         with self.assertRaises(ocfl.DateTimeError):
             ocfl.utc_datetime_from_string('2021-03-23T06:20:30')
+
+    def test_reversed_version_numbers(self):
+        inventory = {'versions': {'v1': None, 'v10': None, 'v2': None, 'v3': None, 'v4': None, 'v5': None, 'v6': None, 'v7': None, 'v8': None, 'v9': None}}
+        self.assertEqual(ocfl.Object.reversed_version_numbers(inventory), ['v10', 'v9', 'v8', 'v7', 'v6', 'v5', 'v4', 'v3', 'v2', 'v1'])
 
     def test_object_not_found(self):
         with self.assertRaises(ocfl.ObjectNotFound):
