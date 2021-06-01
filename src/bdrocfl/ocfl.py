@@ -143,6 +143,18 @@ class Object:
                     file_info['mimetype'] = mimetype
                     file_info['download_filename'] = download_filename
                     info[filepath] = file_info
+        #need to backtrack through versions to get/verify the correct last_modified time
+        #if a file was present with the same checksum in the previous version, then the last_modified time needs to be updated
+        file_handled_mapping = {} #tells us we've already set the correct last_modified time for a filepath, so don't update it again
+        for filepath in info.keys():
+            file_handled_mapping[filepath] = False
+        for version_num in list(reversed(self._inventory['versions'].keys()))[1:]: #already handled head version
+            for checksum, filepaths in self._inventory['versions'][version_num]['state'].items():
+                for filepath in filepaths:
+                    if filepath in info:
+                        if checksum == info[filepath]['checksum'] and not file_handled_mapping[filepath]:
+                            info[filepath]['last_modified'] = utc_datetime_from_string(self._inventory['versions'][version_num]['created'])
+                            file_handled_mapping[filepath] = True
         return info
 
     @property
