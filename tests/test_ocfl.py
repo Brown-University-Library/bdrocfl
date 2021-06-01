@@ -19,7 +19,7 @@ SIMPLE_INVENTORY = {
   "type": "https://ocfl.io/1.0/spec/#inventory",
   "versions": {
     "v1": {
-      "created": "2018-10-02T12:00:00Z",
+      "created": "2018-10-01T12:00:00Z",
       "message": "One file",
       "state": {
         "d404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db": [ "file.txt" ],
@@ -31,7 +31,7 @@ SIMPLE_INVENTORY = {
       }
     },
     "v4": {
-      "created": "2018-10-05T12:00:00Z",
+      "created": "2018-10-04T12:00:00Z",
       "message": "add another file (duplicate)",
       "state": {
         "d404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db": [ "renamed_file.txt" ],
@@ -44,7 +44,7 @@ SIMPLE_INVENTORY = {
       }
     },
     "v2": {
-      "created": "2018-10-03T12:00:00Z",
+      "created": "2018-10-02T12:00:00Z",
       "message": "remove file",
       "state": {},
       "user": {
@@ -53,7 +53,7 @@ SIMPLE_INVENTORY = {
       }
     },
     "v3": {
-      "created": "2018-10-04T12:00:00Z",
+      "created": "2018-10-03T12:00:00Z",
       "message": "add files",
       "state": {
         "d404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db": [ "renamed_file.txt" ],
@@ -150,8 +150,8 @@ class TestOcfl(unittest.TestCase):
         self.assertEqual(o.get_path_to_file('file.txt', 'v1'), file_txt_path)
 
         self.assertEqual(o.head_version, 'v4')
-        self.assertEqual(o.created, datetime(2018, 10, 2, 12, 0, 0, tzinfo=timezone.utc))
-        self.assertEqual(o.last_modified, datetime(2018, 10, 5, 12, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(o.created, datetime(2018, 10, 1, 12, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(o.last_modified, datetime(2018, 10, 4, 12, 0, 0, tzinfo=timezone.utc))
 
         self.assertEqual(sorted(o.filenames), ['RELS-INT', 'renamed_file.txt', 'something', 'something else'])
         self.assertEqual(sorted(o.all_filenames), ['RELS-INT', 'file.txt', 'renamed_file.txt', 'something', 'something else'])
@@ -164,7 +164,7 @@ class TestOcfl(unittest.TestCase):
                 'checksum_type': 'SHA-512',
                 'mimetype': 'application/octet-stream',
                 'download_filename': 'RELS-INT',
-                'last_modified': datetime(2018, 10, 4, 12, 0, 0, tzinfo=timezone.utc),
+                'last_modified': datetime(2018, 10, 3, 12, 0, 0, tzinfo=timezone.utc),
             },
             'renamed_file.txt': {
                 'state': 'A',
@@ -173,7 +173,7 @@ class TestOcfl(unittest.TestCase):
                 'checksum_type': 'SHA-512',
                 'mimetype': 'text/plain',
                 'download_filename': 'renamed_file.txt',
-                'last_modified': datetime(2018, 10, 4, 12, 0, 0, tzinfo=timezone.utc),
+                'last_modified': datetime(2018, 10, 3, 12, 0, 0, tzinfo=timezone.utc),
             },
             'something': {
                 'state': 'A',
@@ -182,7 +182,7 @@ class TestOcfl(unittest.TestCase):
                 'checksum_type': 'SHA-512',
                 'mimetype': 'image/jpeg',
                 'download_filename': 'some image.jpg',
-                'last_modified': datetime(2018, 10, 4, 12, 0, 0, tzinfo=timezone.utc),
+                'last_modified': datetime(2018, 10, 3, 12, 0, 0, tzinfo=timezone.utc),
             },
             'something else': {
                 'state': 'A',
@@ -191,7 +191,7 @@ class TestOcfl(unittest.TestCase):
                 'checksum_type': 'SHA-512',
                 'mimetype': 'application/octet-stream',
                 'download_filename': 'something else',
-                'last_modified': datetime(2018, 10, 5, 12, 0, 0, tzinfo=timezone.utc),
+                'last_modified': datetime(2018, 10, 4, 12, 0, 0, tzinfo=timezone.utc),
             },
         })
 
