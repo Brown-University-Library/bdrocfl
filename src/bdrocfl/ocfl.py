@@ -148,7 +148,7 @@ class Object:
         file_handled_mapping = {} #tells us we've already set the correct last_modified time for a filepath, so don't update it again
         for filepath in info.keys():
             file_handled_mapping[filepath] = False
-        for version_num in list(reversed(self._inventory['versions'].keys()))[1:]: #already handled head version
+        for version_num in list(reversed(list(self._inventory['versions'].keys())))[1:]: #already handled head version
             for checksum, filepaths in self._inventory['versions'][version_num]['state'].items():
                 for filepath in filepaths:
                     if filepath in info:
