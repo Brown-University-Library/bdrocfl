@@ -150,16 +150,21 @@ class Object:
                     info[filepath] = file_info
         #need to backtrack through versions to get/verify the correct last_modified time
         #if a file was present with the same checksum in the previous version, then the last_modified time needs to be updated
-        file_handled_mapping = {} #tells us we've already set the correct last_modified time for a filepath, so don't update it again
+        file_handled_mapping = {} #tells us not to update the last_modified time anymore as we keep going back through version history
         for filepath in info.keys():
             file_handled_mapping[filepath] = False
         for version_num in Object.reversed_version_numbers(self._inventory)[1:]: #already handled head version
+            files_in_this_version = set()
             for checksum, filepaths in self._inventory['versions'][version_num]['state'].items():
                 for filepath in filepaths:
                     if filepath in info:
+                        files_in_this_version.add(filepath)
                         if checksum == info[filepath]['checksum'] and not file_handled_mapping[filepath]:
                             info[filepath]['last_modified'] = utc_datetime_from_string(self._inventory['versions'][version_num]['created'])
-                            file_handled_mapping[filepath] = True
+            #if there are any files in the head version, that aren't in this version, mark that we shouldn't update their time anymore
+            for filepath in file_handled_mapping:
+                if filepath not in files_in_this_version:
+                    file_handled_mapping[filepath] = True
         return info
 
     @property
