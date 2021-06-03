@@ -89,34 +89,66 @@ def _micro_seconds_from_micro_str(micro_str):
 
 
 def utc_datetime_from_string_custom(date_string):
-    year, month, day = [int(i) for i in date_string[0:10].split('-')]
-    hours, minutes, seconds = [int(i) for i in date_string[11:19].split(':')]
-    micro_seconds = 0
-    tzinfo = None
-    remaining_date_string = date_string[19:]
-    if remaining_date_string.startswith('.'): #we have microseconds
-        if remaining_date_string.endswith('Z'):
-            tzinfo = timezone.utc
-            micro_str = remaining_date_string[1:-1]
-            micro_seconds = _micro_seconds_from_micro_str(micro_str)
-        elif '+' in remaining_date_string:
-            micro_str, tz_str = remaining_date_string.split('+')
-            micro_str = micro_str[1:]
-            micro_seconds = _micro_seconds_from_micro_str(micro_str)
-            tz_hours, tz_minutes = [int(i) for i in tz_str.split(':')]
-            tzinfo = timezone(timedelta(hours=tz_hours, minutes=tz_minutes))
-        elif '-' in remaining_date_string:
-            micro_str, tz_str = remaining_date_string.split('-')
-            micro_str = micro_str[1:]
-            micro_seconds = _micro_seconds_from_micro_str(micro_str)
-            tz_hours, tz_minutes = [int(i) for i in tz_str.split(':')]
-            tzinfo = timezone(timedelta(hours=tz_hours, minutes=tz_minutes) * -1)
-    else: #no microseconds
-        if remaining_date_string == 'Z':
-            tzinfo = timezone.utc
-    if not tzinfo:
-        raise DateTimeError(f'datetime must have timezone info: {date_string}')
-    return datetime(year, month, day, hours, minutes, seconds, micro_seconds, tzinfo).astimezone(timezone.utc)
+    try:
+        dt = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
+        if not dt.tzinfo:
+            raise DateTimeError(f'datetime must have timezone info: {date_string}')
+        return dt
+    except ValueError:
+        try:
+            remaining_date_string = date_string[19:]
+            year = int(date_string[0:4])
+            month = int(date_string[5:7])
+            day = int(date_string[8:10])
+            hours = int(date_string[11:13])
+            minutes = int(date_string[14:16])
+            seconds = int(date_string[17:19])
+            micro_seconds = 0
+            tzinfo = None
+            if remaining_date_string[0] == '.': #we have microseconds
+                if remaining_date_string[-1] == 'Z':
+                    tzinfo = timezone.utc
+                    micro_str = remaining_date_string[1:-1]
+                    micro_seconds = _micro_seconds_from_micro_str(micro_str)
+                    return datetime(year, month, day, hours, minutes, seconds, micro_seconds, tzinfo)
+                elif '+' in remaining_date_string:
+                    micro_str, tz_str = remaining_date_string.split('+')
+                    micro_str = micro_str[1:]
+                    micro_seconds = _micro_seconds_from_micro_str(micro_str)
+                    tz_hours, tz_minutes = [int(i) for i in tz_str.split(':')]
+                    tzinfo = timezone(timedelta(hours=tz_hours, minutes=tz_minutes))
+                elif '-' in remaining_date_string:
+                    micro_str, tz_str = remaining_date_string.split('-')
+                    micro_str = micro_str[1:]
+                    micro_seconds = _micro_seconds_from_micro_str(micro_str)
+                    tz_hours, tz_minutes = [int(i) for i in tz_str.split(':')]
+                    tzinfo = timezone(timedelta(hours=tz_hours, minutes=tz_minutes) * -1)
+                else:
+                    raise DateTimeError(f'error parsing {date_string}')
+            else: #no microseconds
+                if remaining_date_string == 'Z':
+                    tzinfo = timezone.utc
+                elif remaining_date_string.startswith('+'):
+                    tz_str = remaining_date_string[1:]
+                    tz_hours, tz_minutes = [int(i) for i in tz_str.split(':')]
+                    tzinfo = timezone(timedelta(hours=tz_hours, minutes=tz_minutes))
+                elif remaining_date_string.startswith('-'):
+                    tz_str = remaining_date_string[1:]
+                    tz_hours, tz_minutes = [int(i) for i in tz_str.split(':')]
+                    tzinfo = timezone(timedelta(hours=tz_hours, minutes=tz_minutes) * -1)
+                else:
+                    raise DateTimeError(f'error parsing {date_string}')
+            dt = datetime(year, month, day, hours, minutes, seconds, micro_seconds, tzinfo)
+            if not dt.tzinfo:
+                raise DateTimeError(f'datetime must have timezone info: {date_string}')
+            if dt.tzinfo == timezone.utc:
+                return dt
+            else:
+                return dt.astimezone(timezone.utc)
+        except DateTimeError:
+            raise
+        except Exception:
+            raise DateTimeError(f'error parsing {datestring}')
 
 
 def utc_datetime_from_string_isoformat(s):
