@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import hashlib
 import json
 import mimetypes
@@ -67,6 +67,73 @@ def object_path(pid):
             sha256_checksum[6:9],
             pid.replace(':', '%3a'),
         )
+
+
+def _micro_seconds_from_micro_str(micro_str):
+    micro_str_len = len(micro_str)
+    if micro_str_len == 6:
+        micro_seconds = int(micro_str)
+    elif micro_str_len == 5:
+        micro_seconds = int(micro_str) * 10
+    elif micro_str_len == 4:
+        micro_seconds = int(micro_str) * 100
+    elif micro_str_len == 3:
+        micro_seconds = int(micro_str) * 1000
+    elif micro_str_len == 2:
+        micro_seconds = int(micro_str) * 10000
+    elif micro_str_len == 1:
+        micro_seconds = int(micro_str) * 100000
+    else:
+        raise DateTimeError(f'invalid microseconds: {micro_str}')
+    return micro_seconds
+
+
+def utc_datetime_from_string_custom(date_string):
+    year, month, day = [int(i) for i in date_string[0:10].split('-')]
+    hours, minutes, seconds = [int(i) for i in date_string[11:19].split(':')]
+    micro_seconds = 0
+    tzinfo = None
+    remaining_date_string = date_string[19:]
+    if remaining_date_string.startswith('.'): #we have microseconds
+        if remaining_date_string.endswith('Z'):
+            tzinfo = timezone.utc
+            micro_str = remaining_date_string[1:-1]
+            micro_seconds = _micro_seconds_from_micro_str(micro_str)
+        elif '+' in remaining_date_string:
+            micro_str, tz_str = remaining_date_string.split('+')
+            micro_str = micro_str[1:]
+            micro_seconds = _micro_seconds_from_micro_str(micro_str)
+            tz_hours, tz_minutes = [int(i) for i in tz_str.split(':')]
+            tzinfo = timezone(timedelta(hours=tz_hours, minutes=tz_minutes))
+        elif '-' in remaining_date_string:
+            micro_str, tz_str = remaining_date_string.split('-')
+            micro_str = micro_str[1:]
+            micro_seconds = _micro_seconds_from_micro_str(micro_str)
+            tz_hours, tz_minutes = [int(i) for i in tz_str.split(':')]
+            tzinfo = timezone(timedelta(hours=tz_hours, minutes=tz_minutes) * -1)
+    else: #no microseconds
+        if remaining_date_string == 'Z':
+            tzinfo = timezone.utc
+    if not tzinfo:
+        raise DateTimeError(f'datetime must have timezone info: {date_string}')
+    return datetime(year, month, day, hours, minutes, seconds, micro_seconds, tzinfo).astimezone(timezone.utc)
+
+
+def utc_datetime_from_string_isoformat(s):
+    try:
+        dt = datetime.fromisoformat(s.replace('Z', '+00:00'))
+        if not dt.tzinfo:
+            raise DateTimeError(f'datetime must have timezone info: {s}')
+        return dt
+    except ValueError:
+        try:
+            dt = datetime.strptime(s, '%Y-%m-%dT%H:%M:%S.%f%z')
+        except ValueError:
+            try:
+                dt = datetime.strptime(s, '%Y-%m-%dT%H:%M:%S%z')
+            except ValueError:
+                raise DateTimeError(f'unrecognized datetime format: {s}')
+        return dt.astimezone(tz=timezone.utc)
 
 
 def utc_datetime_from_string(s):
