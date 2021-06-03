@@ -90,11 +90,13 @@ def _micro_seconds_from_micro_str(micro_str):
 
 def utc_datetime_from_string(date_string):
     try:
+        #fromisoformat is very fast - try this first
         dt = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
         if not dt.tzinfo:
             raise DateTimeError(f'datetime must have timezone info: {date_string}')
         return dt
     except ValueError:
+        #if fromisoformat failed, fall back to this
         try:
             remaining_date_string = date_string[19:]
             year = int(date_string[0:4])
