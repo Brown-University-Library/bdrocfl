@@ -120,8 +120,7 @@ class TestOcfl(unittest.TestCase):
             print(f'  utc_datetime_from_string: {speed}')
 
     def test_reversed_version_numbers(self):
-        inventory = {'versions': {'v1': None, 'v10': None, 'v2': None, 'v3': None, 'v4': None, 'v5': None, 'v6': None, 'v7': None, 'v8': None, 'v9': None}}
-        self.assertEqual(ocfl.Object.reversed_version_numbers(inventory), ['v10', 'v9', 'v8', 'v7', 'v6', 'v5', 'v4', 'v3', 'v2', 'v1'])
+        self.assertEqual(ocfl.Object.reversed_version_numbers('v10'), ['v10', 'v9', 'v8', 'v7', 'v6', 'v5', 'v4', 'v3', 'v2', 'v1'])
 
     def test_object_not_found(self):
         with self.assertRaises(ocfl.ObjectNotFound):
