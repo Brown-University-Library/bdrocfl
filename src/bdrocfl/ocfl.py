@@ -168,9 +168,8 @@ class Object:
         self._files_info = None
 
     @staticmethod
-    def reversed_version_numbers(inventory):
-        #have to order based on the ints, not based on the order of the keys in the dict
-        return list(reversed(sorted(list(inventory['versions'].keys()), key=lambda key: int(key.replace('v', '')))))
+    def reversed_version_numbers(head_version):
+        return [f'v{i}' for i in range(int(head_version.replace('v', '')), 0, -1)]
 
     def _get_inventory(self, object_path):
         inventory_path = os.path.join(object_path, 'inventory.json')
@@ -226,7 +225,7 @@ class Object:
         file_handled_mapping = {} #tells us not to update the last_modified time anymore as we keep going back through version history
         for filepath in info.keys():
             file_handled_mapping[filepath] = False
-        for version_num in Object.reversed_version_numbers(self._inventory)[1:]: #already handled head version
+        for version_num in Object.reversed_version_numbers(self.head_version)[1:]: #already handled head version
             files_in_this_version = set()
             for checksum, filepaths in self._inventory['versions'][version_num]['state'].items():
                 for filepath in filepaths:
@@ -269,7 +268,7 @@ class Object:
     @property
     def all_filenames(self):
         filenames = set()
-        for v in Object.reversed_version_numbers(self._inventory):
+        for v in Object.reversed_version_numbers(self.head_version):
             for checksum, filepaths in self._inventory['versions'][v]['state'].items():
                 for f in filepaths:
                     filenames.add(f)
