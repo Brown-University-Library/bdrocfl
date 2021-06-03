@@ -88,7 +88,7 @@ def _micro_seconds_from_micro_str(micro_str):
     return micro_seconds
 
 
-def utc_datetime_from_string_custom(date_string):
+def utc_datetime_from_string(date_string):
     try:
         dt = datetime.fromisoformat(date_string.replace('Z', '+00:00'))
         if not dt.tzinfo:
@@ -151,34 +151,6 @@ def utc_datetime_from_string_custom(date_string):
             raise DateTimeError(f'error parsing {datestring}')
 
 
-def utc_datetime_from_string_isoformat(s):
-    try:
-        dt = datetime.fromisoformat(s.replace('Z', '+00:00'))
-        if not dt.tzinfo:
-            raise DateTimeError(f'datetime must have timezone info: {s}')
-        return dt
-    except ValueError:
-        try:
-            dt = datetime.strptime(s, '%Y-%m-%dT%H:%M:%S.%f%z')
-        except ValueError:
-            try:
-                dt = datetime.strptime(s, '%Y-%m-%dT%H:%M:%S%z')
-            except ValueError:
-                raise DateTimeError(f'unrecognized datetime format: {s}')
-        return dt.astimezone(tz=timezone.utc)
-
-
-def utc_datetime_from_string(s):
-    try:
-        dt = datetime.strptime(s, '%Y-%m-%dT%H:%M:%S.%f%z')
-    except ValueError:
-        try:
-            dt = datetime.strptime(s, '%Y-%m-%dT%H:%M:%S%z')
-        except ValueError:
-            raise DateTimeError(f'unrecognized datetime format: {s}')
-    return dt.astimezone(tz=timezone.utc)
-
-
 class Object:
 
     def __init__(self, pid, fallback_to_version_directory=True):
@@ -234,7 +206,7 @@ class Object:
             for filepath in filepaths:
                 if filepath not in info:
                     file_info = {
-                            'last_modified': utc_datetime_from_string_custom(self._inventory['versions'][self.head_version]['created']),
+                            'last_modified': utc_datetime_from_string(self._inventory['versions'][self.head_version]['created']),
                             'checksum': checksum,
                             'checksum_type': 'SHA-512',
                             'state': 'A',
@@ -259,7 +231,7 @@ class Object:
                     if filepath in info:
                         files_in_this_version.add(filepath)
                         if checksum == info[filepath]['checksum'] and not file_handled_mapping[filepath]:
-                            info[filepath]['last_modified'] = utc_datetime_from_string_custom(self._inventory['versions'][version_num]['created'])
+                            info[filepath]['last_modified'] = utc_datetime_from_string(self._inventory['versions'][version_num]['created'])
             #if there are any files in the head version, that aren't in this version, mark that we shouldn't update their time anymore
             for filepath in file_handled_mapping:
                 if filepath not in files_in_this_version:
@@ -268,11 +240,11 @@ class Object:
 
     @property
     def created(self):
-        return utc_datetime_from_string_custom(self._inventory['versions']['v1']['created'])
+        return utc_datetime_from_string(self._inventory['versions']['v1']['created'])
 
     @property
     def last_modified(self):
-        return utc_datetime_from_string_custom(self._inventory['versions'][self.head_version]['created'])
+        return utc_datetime_from_string(self._inventory['versions'][self.head_version]['created'])
 
     def get_path_to_file(self, filename, version=None):
         if not version:

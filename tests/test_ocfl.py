@@ -96,34 +96,28 @@ class TestOcfl(unittest.TestCase):
 
     def test_datetime_from_string(self):
         self.maxDiff = None
-        for function in [ocfl.utc_datetime_from_string, ocfl.utc_datetime_from_string_isoformat, ocfl.utc_datetime_from_string_custom]:
-            with self.subTest(function=function):
-                dt = function('2021-03-23T06:20:30.522328-04:00')
-                self.assertEqual(dt, datetime(2021, 3, 23, 10, 20, 30, 522328, tzinfo=timezone.utc))
-                dt = function('2021-03-23T14:20:30.522328+04:00')
-                self.assertEqual(dt, datetime(2021, 3, 23, 10, 20, 30, 522328, tzinfo=timezone.utc))
-                self.assertEqual(function('2021-03-23T10:20:30Z'), datetime(2021, 3, 23, 10, 20, 30, tzinfo=timezone.utc))
-                self.assertEqual(function('2021-03-23T10:20:30.000Z'), datetime(2021, 3, 23, 10, 20, 30, tzinfo=timezone.utc))
-                self.assertEqual(function('2020-11-25T20:30:43.7Z'), datetime(2020, 11, 25, 20, 30, 43, 700000, tzinfo=timezone.utc))
-                self.assertEqual(function('2020-11-25T22:30:43.7+02:00'), datetime(2020, 11, 25, 20, 30, 43, 700000, tzinfo=timezone.utc))
-                self.assertEqual(function('2020-11-25T22:30:43+02:00'), datetime(2020, 11, 25, 20, 30, 43, 0, tzinfo=timezone.utc))
-                self.assertEqual(function('2020-11-25T18:30:43-02:00'), datetime(2020, 11, 25, 20, 30, 43, 0, tzinfo=timezone.utc))
-                self.assertEqual(function('2020-11-25T20:30:43.73Z'), datetime(2020, 11, 25, 20, 30, 43, 730000, tzinfo=timezone.utc))
-                self.assertEqual(function('2020-11-25T20:30:43.737Z'), datetime(2020, 11, 25, 20, 30, 43, 737000, tzinfo=timezone.utc)) #common in fedora history
-                self.assertEqual(function('2020-11-25T20:30:43.73776Z'), datetime(2020, 11, 25, 20, 30, 43, 737760, tzinfo=timezone.utc)) #in ocfl objs, but maybe more rare than next one
-                self.assertEqual(function('2021-03-23T10:20:30.522328Z'), datetime(2021, 3, 23, 10, 20, 30, 522328, tzinfo=timezone.utc)) #common in new ocfl objs
-                with self.assertRaises(ocfl.DateTimeError):
-                    function('2021-03-23T06:20:30')
+        dt = ocfl.utc_datetime_from_string('2021-03-23T06:20:30.522328-04:00')
+        self.assertEqual(dt, datetime(2021, 3, 23, 10, 20, 30, 522328, tzinfo=timezone.utc))
+        dt = ocfl.utc_datetime_from_string('2021-03-23T14:20:30.522328+04:00')
+        self.assertEqual(dt, datetime(2021, 3, 23, 10, 20, 30, 522328, tzinfo=timezone.utc))
+        self.assertEqual(ocfl.utc_datetime_from_string('2021-03-23T10:20:30Z'), datetime(2021, 3, 23, 10, 20, 30, tzinfo=timezone.utc))
+        self.assertEqual(ocfl.utc_datetime_from_string('2021-03-23T10:20:30.000Z'), datetime(2021, 3, 23, 10, 20, 30, tzinfo=timezone.utc))
+        self.assertEqual(ocfl.utc_datetime_from_string('2020-11-25T20:30:43.7Z'), datetime(2020, 11, 25, 20, 30, 43, 700000, tzinfo=timezone.utc))
+        self.assertEqual(ocfl.utc_datetime_from_string('2020-11-25T22:30:43.7+02:00'), datetime(2020, 11, 25, 20, 30, 43, 700000, tzinfo=timezone.utc))
+        self.assertEqual(ocfl.utc_datetime_from_string('2020-11-25T22:30:43+02:00'), datetime(2020, 11, 25, 20, 30, 43, 0, tzinfo=timezone.utc))
+        self.assertEqual(ocfl.utc_datetime_from_string('2020-11-25T18:30:43-02:00'), datetime(2020, 11, 25, 20, 30, 43, 0, tzinfo=timezone.utc))
+        self.assertEqual(ocfl.utc_datetime_from_string('2020-11-25T20:30:43.73Z'), datetime(2020, 11, 25, 20, 30, 43, 730000, tzinfo=timezone.utc))
+        self.assertEqual(ocfl.utc_datetime_from_string('2020-11-25T20:30:43.737Z'), datetime(2020, 11, 25, 20, 30, 43, 737000, tzinfo=timezone.utc)) #common in fedora history
+        self.assertEqual(ocfl.utc_datetime_from_string('2020-11-25T20:30:43.73776Z'), datetime(2020, 11, 25, 20, 30, 43, 737760, tzinfo=timezone.utc)) #in ocfl objs, but maybe more rare than next one
+        self.assertEqual(ocfl.utc_datetime_from_string('2021-03-23T10:20:30.522328Z'), datetime(2021, 3, 23, 10, 20, 30, 522328, tzinfo=timezone.utc)) #common in new ocfl objs
+        with self.assertRaises(ocfl.DateTimeError):
+            ocfl.utc_datetime_from_string('2021-03-23T06:20:30')
         #now time the functions
         print('datetime parsing speeds:')
         for date_string in ['2021-03-23T06:20:30.522328-04:00', '2021-03-23T06:20:30.52232-04:00', '2020-11-25T20:30:43.737Z', '2020-11-25T20:30:43.73776Z', '2020-11-25T20:30:43.737760Z']:
             print(date_string)
             speed = timeit.timeit(f'ocfl.utc_datetime_from_string("{date_string}")', number=10000, setup='from bdrocfl import ocfl')
             print(f'  utc_datetime_from_string: {speed}')
-            speed = timeit.timeit(f'ocfl.utc_datetime_from_string_isoformat("{date_string}")', number=10000, setup='from bdrocfl import ocfl')
-            print(f'  utc_datetime_from_string_isoformat: {speed}')
-            speed = timeit.timeit(f'ocfl.utc_datetime_from_string_custom("{date_string}")', number=10000, setup='from bdrocfl import ocfl')
-            print(f'  utc_datetime_from_string_custom: {speed}')
 
     def test_reversed_version_numbers(self):
         inventory = {'versions': {'v1': None, 'v10': None, 'v2': None, 'v3': None, 'v4': None, 'v5': None, 'v6': None, 'v7': None, 'v8': None, 'v9': None}}
