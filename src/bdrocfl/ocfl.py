@@ -49,6 +49,12 @@ def get_mimetype_from_filename(filename):
         return 'application/octet-stream'
 
 
+def load_rels_int(rels_int_path):
+    with open(rels_int_path, 'rb') as rels_int_file:
+        rels_int_bytes = rels_int_file.read()
+    return ET.fromstring(rels_int_bytes)
+
+
 def get_download_filename_from_rels_int(rels_int_root, pid, filepath):
     if rels_int_root:
         for description in rels_int_root.findall('rdf:Description', RELS_INT_NS):
@@ -198,9 +204,7 @@ class Object:
         info = {}
         try:
             rels_int_path = self.get_path_to_file('RELS-INT')
-            with open(rels_int_path, 'rb') as rels_int_file:
-                rels_int_bytes = rels_int_file.read()
-            rels_int_root = ET.fromstring(rels_int_bytes)
+            rels_int_root = load_rels_int(rels_int_path)
         except FileNotFoundError:
             rels_int_root = None
         for checksum, filepaths in self._inventory['versions'][self.head_version]['state'].items():
@@ -249,7 +253,7 @@ class Object:
 
     def get_path_to_file(self, filename, version=None):
         if not version:
-            version = list(self._inventory['versions'].keys())[-1]
+            version = self._inventory['head']
         for checksum, files in self._inventory['versions'][version]['state'].items():
             for f in files:
                 if f == filename:
