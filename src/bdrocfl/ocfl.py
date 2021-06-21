@@ -172,6 +172,7 @@ class Object:
         if not self._inventory['versions'][self.head_version]['state']:
             raise ObjectDeleted()
         self._files_info = None
+        self._rels_int_root = None
 
     @staticmethod
     def reversed_version_numbers(head_version):
@@ -202,11 +203,6 @@ class Object:
 
     def _get_files_info(self):
         info = {}
-        try:
-            rels_int_path = self.get_path_to_file('RELS-INT')
-            rels_int_root = load_rels_int(rels_int_path)
-        except FileNotFoundError:
-            rels_int_root = None
         for checksum, filepaths in self._inventory['versions'][self.head_version]['state'].items():
             for filepath in filepaths:
                 if filepath not in info:
@@ -217,7 +213,7 @@ class Object:
                             'state': 'A',
                             'size': os.stat(os.path.join(self.object_path, self._inventory['manifest'][checksum][0])).st_size,
                         }
-                    download_filename = get_download_filename_from_rels_int(rels_int_root, self.pid, filepath)
+                    download_filename = get_download_filename_from_rels_int(self.rels_int_root, self.pid, filepath)
                     if not download_filename:
                         download_filename = filepath
                     mimetype = get_mimetype_from_filename(download_filename)
@@ -250,6 +246,16 @@ class Object:
     @property
     def last_modified(self):
         return utc_datetime_from_string(self._inventory['versions'][self.head_version]['created'])
+
+    @property
+    def rels_int_root(self):
+        if not self._rels_int_root:
+            try:
+                rels_int_path = self.get_path_to_file('RELS-INT')
+                self._rels_int_root = load_rels_int(rels_int_path)
+            except FileNotFoundError:
+                self._rels_int_root = None
+        return self._rels_int_root
 
     def get_path_to_file(self, filename, version=None):
         if not version:
