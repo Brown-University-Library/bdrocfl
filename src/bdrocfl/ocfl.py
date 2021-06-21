@@ -64,6 +64,10 @@ def get_download_filename_from_rels_int(rels_int_root, pid, filepath):
                         return os.path.basename(child.text)
 
 
+def get_file_size(full_path):
+    return os.stat(full_path).st_size
+
+
 def object_path(pid):
     sha256_checksum = hashlib.sha256(pid.encode('utf8')).hexdigest()
     return os.path.join(
@@ -211,7 +215,7 @@ class Object:
                             'checksum': checksum,
                             'checksum_type': 'SHA-512',
                             'state': 'A',
-                            'size': os.stat(os.path.join(self.object_path, self._inventory['manifest'][checksum][0])).st_size,
+                            'size': get_file_size(os.path.join(self.object_path, self._inventory['manifest'][checksum][0])),
                         }
                     download_filename = get_download_filename_from_rels_int(self.rels_int_root, self.pid, filepath)
                     if not download_filename:
