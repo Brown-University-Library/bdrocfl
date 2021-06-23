@@ -38,7 +38,11 @@ mimetypes.add_type(MKV_MIMETYPE, '.mkv', strict=False)
 
 
 def get_mimetype_from_filename(filename):
-    if filename.endswith('.tei.xml') or filename.endswith('.tei'):
+    if filename in ['RELS-INT', 'RELS-EXT', 'MODS', 'DWC']:
+        return 'text/xml'
+    if filename == 'DIGITAL-NEGATIVE':
+        return DNG_MIMETYPE
+    if filename == 'TEI' or filename.lower().endswith('.tei.xml') or filename.lower().endswith('.tei'):
         return 'application/tei+xml'
     if '.' not in filename:
         filename = 'a.%s' % filename

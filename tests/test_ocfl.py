@@ -94,6 +94,17 @@ class TestOcfl(unittest.TestCase):
     def test_object_path(self):
         self.assertEqual(ocfl.object_path('testsuite:abcd1234'), os.path.join(ocfl.OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234'))
 
+    def test_get_mimetype_from_filename(self):
+        self.assertEqual(ocfl.get_mimetype_from_filename('RELS-INT'), 'text/xml')
+        self.assertEqual(ocfl.get_mimetype_from_filename('RELS-EXT'), 'text/xml')
+        self.assertEqual(ocfl.get_mimetype_from_filename('MODS'), 'text/xml')
+        self.assertEqual(ocfl.get_mimetype_from_filename('DWC'), 'text/xml')
+        self.assertEqual(ocfl.get_mimetype_from_filename('TEI'), 'application/tei+xml')
+        self.assertEqual(ocfl.get_mimetype_from_filename('DIGITAL-NEGATIVE'), ocfl.DNG_MIMETYPE)
+        self.assertEqual(ocfl.get_mimetype_from_filename('image.dng'), ocfl.DNG_MIMETYPE)
+        self.assertEqual(ocfl.get_mimetype_from_filename('image.DNG'), ocfl.DNG_MIMETYPE)
+        self.assertEqual(ocfl.get_mimetype_from_filename('file.TEI'), 'application/tei+xml')
+
     def test_datetime_from_string(self):
         self.maxDiff = None
         dt = ocfl.utc_datetime_from_string('2021-03-23T06:20:30.522328-04:00')
@@ -189,7 +200,7 @@ class TestOcfl(unittest.TestCase):
                 'size': 347,
                 'checksum': 'e9a02f16c5514f23a49eec017e35e08e5c3e7414b33456f17502232c6a6e7a9196f831ab0764954fcb8df398c494d5091c64356dfe42e831b6949eab2449371e',
                 'checksum_type': 'SHA-512',
-                'mimetype': 'application/octet-stream',
+                'mimetype': 'text/xml',
                 'download_filename': 'RELS-INT',
                 'last_modified': datetime(2018, 10, 3, 12, 0, 0, tzinfo=timezone.utc),
             },
