@@ -194,7 +194,25 @@ class TestOcfl(unittest.TestCase):
         self.assertEqual(sorted(o.filenames), ['RELS-INT', 'RELS-INT2', 'renamed_file.txt', 'something', 'something else'])
         self.assertEqual(sorted(o.all_filenames), ['RELS-INT', 'RELS-INT2', 'file.txt', 'renamed_file.txt', 'something', 'something else'])
         self.maxDiff = None
-        self.assertEqual(o.get_files_info(), {
+        self.assertEqual(o.get_files_info(), {'RELS-INT': {}, 'RELS-INT2': {}, 'renamed_file.txt': {}, 'something': {}, 'something else': {}})
+        self.assertEqual(o.get_files_info(include_deleted=True), {'RELS-INT': {}, 'RELS-INT2': {}, 'renamed_file.txt': {}, 'something': {}, 'something else': {}, 'file.txt': {}})
+        self.assertEqual(o.get_files_info(include_deleted=True, fields=['state']), {
+            'RELS-INT': {'state': 'A'},
+            'RELS-INT2': {'state': 'A'},
+            'renamed_file.txt': {'state': 'A'},
+            'something': {'state': 'A'},
+            'something else': {'state': 'A'},
+            'file.txt': {'state': 'D'},
+        })
+        self.assertEqual(o.get_files_info(include_deleted=True, fields=['mimetype']), {
+            'RELS-INT': {'mimetype': 'text/xml'},
+            'RELS-INT2': {'mimetype': 'application/octet-stream'},
+            'renamed_file.txt': {'mimetype': 'text/plain'},
+            'something': {'mimetype': 'image/jpeg'},
+            'something else': {'mimetype': 'application/octet-stream'},
+            'file.txt': {'mimetype': 'text/plain'},
+        })
+        self.assertEqual(o.get_files_info(fields=['state', 'size', 'checksum', 'checksum_type', 'mimetype', 'download_filename', 'last_modified']), {
             'RELS-INT': {
                 'state': 'A',
                 'size': 347,

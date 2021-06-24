@@ -210,10 +210,10 @@ class Object:
         return json.loads(data)
 
     def _get_files_info(self):
-        info = {}
+        files_info = {}
         for checksum, filepaths in self._inventory['versions'][self.head_version]['state'].items():
             for filepath in filepaths:
-                if filepath not in info:
+                if filepath not in files_info:
                     file_info = {
                             'last_modified': utc_datetime_from_string(self._inventory['versions'][self.head_version]['created']),
                             'checksum': checksum,
@@ -227,25 +227,42 @@ class Object:
                     mimetype = get_mimetype_from_filename(download_filename)
                     file_info['mimetype'] = mimetype
                     file_info['download_filename'] = download_filename
-                    info[filepath] = file_info
+                    files_info[filepath] = file_info
         #need to backtrack through versions to get/verify the correct last_modified time
         #if a file was present with the same checksum in the previous version, then the last_modified time needs to be updated
         file_handled_mapping = {} #tells us not to update the last_modified time anymore as we keep going back through version history
-        for filepath in info.keys():
+        for filepath in files_info.keys():
             file_handled_mapping[filepath] = False
         for version_num in Object.reversed_version_numbers(self.head_version)[1:]: #already handled head version
             files_in_this_version = set()
             for checksum, filepaths in self._inventory['versions'][version_num]['state'].items():
                 for filepath in filepaths:
-                    if filepath in info:
-                        files_in_this_version.add(filepath)
-                        if checksum == info[filepath]['checksum'] and not file_handled_mapping[filepath]:
-                            info[filepath]['last_modified'] = utc_datetime_from_string(self._inventory['versions'][version_num]['created'])
+                    files_in_this_version.add(filepath)
+                    if filepath in files_info: #we already saw this file in a newer version - update last_modified if needed
+                        if checksum == files_info[filepath]['checksum'] and not file_handled_mapping[filepath]:
+                            files_info[filepath]['last_modified'] = utc_datetime_from_string(self._inventory['versions'][version_num]['created'])
+                    else:
+                        file_info = {
+                                'last_modified': utc_datetime_from_string(self._inventory['versions'][version_num]['created']),
+                                'checksum': checksum,
+                                'checksum_type': 'SHA-512',
+                                'state': 'D',
+                                'size': get_file_size(os.path.join(self.object_path, self._inventory['manifest'][checksum][0])),
+                            }
+                        rels_int_root = self._get_rels_int_root(version=version_num)
+                        download_filename = get_download_filename_from_rels_int(rels_int_root, self.pid, filepath)
+                        if not download_filename:
+                            download_filename = filepath
+                        mimetype = get_mimetype_from_filename(download_filename)
+                        file_info['mimetype'] = mimetype
+                        file_info['download_filename'] = download_filename
+                        files_info[filepath] = file_info
+                        file_handled_mapping[filepath] = False
             #if there are any files in the head version, that aren't in this version, mark that we shouldn't update their time anymore
             for filepath in file_handled_mapping:
                 if filepath not in files_in_this_version:
                     file_handled_mapping[filepath] = True
-        return info
+        return files_info
 
     @property
     def created(self):
@@ -255,14 +272,17 @@ class Object:
     def last_modified(self):
         return utc_datetime_from_string(self._inventory['versions'][self.head_version]['created'])
 
+    def _get_rels_int_root(self, version):
+        try:
+            rels_int_path = self.get_path_to_file('RELS-INT', version=version)
+            return load_rels_int(rels_int_path)
+        except FileNotFoundError:
+            pass
+
     @property
     def rels_int_root(self):
         if not self._rels_int_root:
-            try:
-                rels_int_path = self.get_path_to_file('RELS-INT')
-                self._rels_int_root = load_rels_int(rels_int_path)
-            except FileNotFoundError:
-                self._rels_int_root = None
+            self._rels_int_root = self._get_rels_int_root(self.head_version)
         return self._rels_int_root
 
     def get_path_to_file(self, filename, version=None):
@@ -292,8 +312,16 @@ class Object:
                     filenames.add(f)
         return filenames
 
-    def get_files_info(self):
-        #returns file information for *active* files
+    def get_files_info(self, include_deleted=False, fields=None):
+        if not fields:
+            if include_deleted:
+                return {filename: {} for filename in self.all_filenames}
+            else:
+                return {filename: {} for filename in self.filenames}
         if not self._files_info:
             self._files_info = self._get_files_info()
-        return self._files_info
+        files_info = {}
+        for filename, info in self._files_info.items():
+            if info['state'] == 'A' or include_deleted:
+                files_info[filename] = {field: value for field, value in info.items() if field in fields}
+        return files_info
