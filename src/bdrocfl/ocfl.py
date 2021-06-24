@@ -215,9 +215,9 @@ class Object:
             for filepath in filepaths:
                 if filepath not in files_info:
                     file_info = {
-                            'last_modified': utc_datetime_from_string(self._inventory['versions'][self.head_version]['created']),
+                            'lastModified': utc_datetime_from_string(self._inventory['versions'][self.head_version]['created']),
                             'checksum': checksum,
-                            'checksum_type': 'SHA-512',
+                            'checksumType': 'SHA-512',
                             'state': 'A',
                             'size': get_file_size(os.path.join(self.object_path, self._inventory['manifest'][checksum][0])),
                         }
@@ -226,11 +226,11 @@ class Object:
                         download_filename = filepath
                     mimetype = get_mimetype_from_filename(download_filename)
                     file_info['mimetype'] = mimetype
-                    file_info['download_filename'] = download_filename
+                    file_info['downloadFilename'] = download_filename
                     files_info[filepath] = file_info
-        #need to backtrack through versions to get/verify the correct last_modified time
-        #if a file was present with the same checksum in the previous version, then the last_modified time needs to be updated
-        file_handled_mapping = {} #tells us not to update the last_modified time anymore as we keep going back through version history
+        #need to backtrack through versions to get/verify the correct lastModified time
+        #if a file was present with the same checksum in the previous version, then the lastModified time needs to be updated
+        file_handled_mapping = {} #tells us not to update the lastModified time anymore as we keep going back through version history
         for filepath in files_info.keys():
             file_handled_mapping[filepath] = False
         for version_num in Object.reversed_version_numbers(self.head_version)[1:]: #already handled head version
@@ -238,14 +238,14 @@ class Object:
             for checksum, filepaths in self._inventory['versions'][version_num]['state'].items():
                 for filepath in filepaths:
                     files_in_this_version.add(filepath)
-                    if filepath in files_info: #we already saw this file in a newer version - update last_modified if needed
+                    if filepath in files_info: #we already saw this file in a newer version - update lastModified if needed
                         if checksum == files_info[filepath]['checksum'] and not file_handled_mapping[filepath]:
-                            files_info[filepath]['last_modified'] = utc_datetime_from_string(self._inventory['versions'][version_num]['created'])
+                            files_info[filepath]['lastModified'] = utc_datetime_from_string(self._inventory['versions'][version_num]['created'])
                     else:
                         file_info = {
-                                'last_modified': utc_datetime_from_string(self._inventory['versions'][version_num]['created']),
+                                'lastModified': utc_datetime_from_string(self._inventory['versions'][version_num]['created']),
                                 'checksum': checksum,
-                                'checksum_type': 'SHA-512',
+                                'checksumType': 'SHA-512',
                                 'state': 'D',
                                 'size': get_file_size(os.path.join(self.object_path, self._inventory['manifest'][checksum][0])),
                             }
@@ -255,7 +255,7 @@ class Object:
                             download_filename = filepath
                         mimetype = get_mimetype_from_filename(download_filename)
                         file_info['mimetype'] = mimetype
-                        file_info['download_filename'] = download_filename
+                        file_info['downloadFilename'] = download_filename
                         files_info[filepath] = file_info
                         file_handled_mapping[filepath] = False
             #if there are any files in the head version, that aren't in this version, mark that we shouldn't update their time anymore
