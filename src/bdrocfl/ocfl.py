@@ -19,14 +19,6 @@ class DateTimeError(RuntimeError):
     pass
 
 
-def get_env_variable(var):
-    try:
-        return os.environ[var]
-    except KeyError:
-        raise Exception(f'must set "{var}" environment variable')
-
-
-OCFL_ROOT = get_env_variable('OCFL_ROOT')
 RELS_INT_NS = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'ns1': 'info:fedora/fedora-system:def/model#'}
 DNG_MIMETYPE = 'image/x-adobe-dng'
 JS_MIMETYPE = 'application/javascript'
@@ -72,10 +64,10 @@ def get_file_size(full_path):
     return os.stat(full_path).st_size
 
 
-def object_path(pid):
+def object_path(storage_root, pid):
     sha256_checksum = hashlib.sha256(pid.encode('utf8')).hexdigest()
     return os.path.join(
-            OCFL_ROOT,
+            storage_root,
             sha256_checksum[0:3],
             sha256_checksum[3:6],
             sha256_checksum[6:9],
@@ -169,10 +161,10 @@ def utc_datetime_from_string(date_string):
 
 class Object:
 
-    def __init__(self, pid, fallback_to_version_directory=True):
+    def __init__(self, storage_root, pid, fallback_to_version_directory=True):
         self.pid = pid
         self._fallback_to_version_directory = fallback_to_version_directory
-        self.object_path = object_path(self.pid)
+        self.object_path = object_path(storage_root, self.pid)
         if not os.path.exists(self.object_path):
             raise ObjectNotFound()
         self._inventory = self._get_inventory(self.object_path)
