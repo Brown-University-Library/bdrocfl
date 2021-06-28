@@ -5,7 +5,7 @@ import os
 import shutil
 import timeit
 import unittest
-from bdrocfl import ocfl
+from bdrocfl import ocfl, test_utils
 
 
 OCFL_ROOT = os.environ['OCFL_ROOT']
@@ -88,7 +88,7 @@ SIMPLE_INVENTORY = {
 
 class TestOcfl(unittest.TestCase):
 
-    def tearDown(self):
+    def setUp(self):
         try:
             shutil.rmtree(os.path.join(OCFL_ROOT, '1b5'))
         except FileNotFoundError:
@@ -141,21 +141,7 @@ class TestOcfl(unittest.TestCase):
             ocfl.Object(OCFL_ROOT, 'testsuite:abcd1234')
 
     def test_object_deleted(self):
-        object_path = os.path.join(OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
-        os.makedirs(object_path)
-        inventory = copy.deepcopy(SIMPLE_INVENTORY)
-        inventory['head'] = 'v4'
-        inventory['versions']['v4'] = {
-            "created": "2018-10-05T12:00:00Z",
-            "message": "delete object",
-            "state": {},
-            "user": {
-              "address": "alice@example.org",
-              "name": "Alice"
-            }
-        }
-        with open(os.path.join(object_path, 'inventory.json'), 'wb') as f:
-            f.write(json.dumps(inventory).encode('utf8'))
+        test_utils.create_deleted_object(OCFL_ROOT, pid='testsuite:abcd1234')
         with self.assertRaises(ocfl.ObjectDeleted):
             ocfl.Object(OCFL_ROOT, 'testsuite:abcd1234')
 
@@ -296,3 +282,35 @@ class TestOcfl(unittest.TestCase):
         #check that we can turn off the feature to fall back to the version directory
         with self.assertRaises(ocfl.InventoryError):
             ocfl.Object(OCFL_ROOT, 'testsuite:abcd1234', fallback_to_version_directory=False)
+
+
+class TestTestUtils(unittest.TestCase):
+
+    def setUp(self):
+        self.pid = 'testsuite:abcd1234'
+        try:
+            shutil.rmtree(os.path.join(OCFL_ROOT, '1b5'))
+        except FileNotFoundError:
+            pass
+
+    def test_create_object(self):
+        test_utils.create_object(OCFL_ROOT, self.pid, files=[('file1', b'abcd')])
+        object_root = os.path.join(OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
+        inventory_path = os.path.join(object_root, 'inventory.json')
+        with open(inventory_path, 'rb') as f:
+            inventory_data = f.read().decode('utf8')
+        inventory = json.loads(inventory_data)
+        self.assertEqual(inventory['id'], self.pid)
+        self.assertEqual(inventory['versions']['v1']['state'], {'d8022f2060ad6efd297ab73dcc5355c9b214054b0d1776a136a669d26a7d3b14f73aa0d0ebff19ee333368f0164b6419a96da49e3e481753e7e96b716bdccb6f': ['file1']})
+        file1_path = os.path.join(object_root, 'v1', 'content', 'file1')
+        with open(file1_path, 'rb') as f:
+            self.assertEqual(f.read(), b'abcd')
+
+    def test_create_deleted_object(self):
+        test_utils.create_deleted_object(storage_root=OCFL_ROOT, pid=self.pid)
+        object_root = os.path.join(OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
+        inventory_path = os.path.join(object_root, 'inventory.json')
+        with open(inventory_path, 'rb') as f:
+            inventory_data = f.read().decode('utf8')
+        inventory = json.loads(inventory_data)
+        self.assertEqual(inventory['versions'][inventory['head']]['state'], {})
