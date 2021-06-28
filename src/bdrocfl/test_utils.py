@@ -25,10 +25,13 @@ def get_base_version(created='2018-10-01T12:24:59.123456Z', message='', user_nam
 
 
 def write_inventory_files(object_root, inventory):
+    version_root = os.path.join(object_root, inventory['head'])
+    if not os.path.exists(version_root):
+        os.makedirs(version_root, exist_ok=True)
     inventory_path = os.path.join(object_root, 'inventory.json')
-    version_inventory_path = os.path.join(object_root, inventory['head'], 'inventory.json')
+    version_inventory_path = os.path.join(version_root, 'inventory.json')
     inventory_hash_path = os.path.join(object_root, 'inventory.json.sha512')
-    version_inventory_hash_path = os.path.join(object_root, inventory['head'], 'inventory.json.sha512')
+    version_inventory_hash_path = os.path.join(version_root, 'inventory.json.sha512')
     with open(inventory_path, 'wb') as f:
         f.write(json.dumps(inventory).encode('utf8'))
     with open(version_inventory_path, 'wb') as f:
@@ -41,59 +44,48 @@ def write_inventory_files(object_root, inventory):
         f.write(inventory_hash_file_content)
 
 
-def create_object(storage_root, pid, files=(('file1', b'abcd'),)):
-    object_root = ocfl.object_path(storage_root, pid)
-    os.makedirs(object_root, exist_ok=False)
-    v1_content = os.path.join('v1', 'content')
-    os.makedirs(os.path.join(object_root, v1_content), exist_ok=False)
-    v1_version = get_base_version()
-    inventory = get_base_inventory(pid)
-    for file_tuple in files:
-        file_name, file_content = file_tuple
-        file_path = os.path.join(v1_content, file_name)
+def add_version_to_inventory(inventory, version_num, version, files):
+    for file_name, file_content in files:
+        file_path = os.path.join(version_num, 'content', file_name)
         file_hash = hashlib.sha512(file_content).hexdigest()
         if file_hash in inventory['manifest']:
             inventory['manifest'][file_hash].append(file_path)
         else:
             inventory['manifest'][file_hash] = [file_path]
-        if file_hash in v1_version['state']:
-            v1_version['state'][file_hash].append(file_name)
+        if file_hash in version['state']:
+            version['state'][file_hash].append(file_name)
         else:
-            v1_version['state'][file_hash] = [file_name]
+            version['state'][file_hash] = [file_name]
+    inventory['versions'][version_num] = version
+    inventory['head'] = version_num
+
+
+def write_content_files(object_root, version_num, files):
+    content_dir = os.path.join(object_root, version_num, 'content')
+    if not os.path.exists(content_dir):
+        os.makedirs(content_dir, exist_ok=True)
+    for file_name, file_content in files:
+        file_path = os.path.join(version_num, 'content', file_name)
         with open(os.path.join(object_root, file_path), 'wb') as f:
             f.write(file_content)
-    inventory['versions']['v1'] = v1_version
-    inventory['head'] = 'v1'
+
+
+def create_object(storage_root, pid, files=(('file1', b'abcd'),)):
+    object_root = ocfl.object_path(storage_root, pid)
+    inventory = get_base_inventory(pid)
+    v1_version = get_base_version()
+    add_version_to_inventory(inventory, 'v1', v1_version, files)
     write_inventory_files(object_root, inventory)
+    write_content_files(object_root, 'v1', files)
 
 
 def create_deleted_object(storage_root, pid, files=(('file1', b'abcd'),)):
     object_root = ocfl.object_path(storage_root, pid)
-    os.makedirs(object_root, exist_ok=False)
-    v1_content = os.path.join('v1', 'content')
-    os.makedirs(os.path.join(object_root, v1_content), exist_ok=False)
-    v1_version = get_base_version()
     inventory = get_base_inventory(pid)
-    for file_tuple in files:
-        file_name, file_content = file_tuple
-        file_path = os.path.join(v1_content, file_name)
-        file_hash = hashlib.sha512(file_content).hexdigest()
-        if file_hash in inventory['manifest']:
-            inventory['manifest'][file_hash].append(file_path)
-        else:
-            inventory['manifest'][file_hash] = [file_path]
-        if file_hash in v1_version['state']:
-            v1_version['state'][file_hash].append(file_name)
-        else:
-            v1_version['state'][file_hash] = [file_name]
-        with open(os.path.join(object_root, file_path), 'wb') as f:
-            f.write(file_content)
-    inventory['versions']['v1'] = v1_version
-    inventory['head'] = 'v1'
+    v1_version = get_base_version()
+    add_version_to_inventory(inventory, 'v1', v1_version, files)
+    write_content_files(object_root, 'v1', files)
     write_inventory_files(object_root, inventory)
-    v2_content = os.path.join('v2', 'content')
-    os.makedirs(os.path.join(object_root, v2_content), exist_ok=False)
     v2_version = get_base_version(created='2019-12-01T12:24:59.123456Z')
-    inventory['versions']['v2'] = v2_version
-    inventory['head'] = 'v2'
+    add_version_to_inventory(inventory, 'v2', v2_version, [])
     write_inventory_files(object_root, inventory)
