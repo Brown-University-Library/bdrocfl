@@ -8,6 +8,9 @@ import unittest
 from bdrocfl import ocfl
 
 
+OCFL_ROOT = os.environ['OCFL_ROOT']
+
+
 SIMPLE_INVENTORY = {
   "digestAlgorithm": "sha512",
   "head": "v5",
@@ -87,12 +90,12 @@ class TestOcfl(unittest.TestCase):
 
     def tearDown(self):
         try:
-            shutil.rmtree(os.path.join(ocfl.OCFL_ROOT, '1b5'))
+            shutil.rmtree(os.path.join(OCFL_ROOT, '1b5'))
         except FileNotFoundError:
             pass
 
     def test_object_path(self):
-        self.assertEqual(ocfl.object_path('testsuite:abcd1234'), os.path.join(ocfl.OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234'))
+        self.assertEqual(ocfl.object_path('/tmp/ocfl_root', 'testsuite:abcd1234'), os.path.join('/tmp', 'ocfl_root', '1b5', '64f', '1ff', 'testsuite%3aabcd1234'))
 
     def test_get_mimetype_from_filename(self):
         self.assertEqual(ocfl.get_mimetype_from_filename('RELS-INT'), 'text/xml')
@@ -135,10 +138,10 @@ class TestOcfl(unittest.TestCase):
 
     def test_object_not_found(self):
         with self.assertRaises(ocfl.ObjectNotFound):
-            ocfl.Object('testsuite:abcd1234')
+            ocfl.Object(OCFL_ROOT, 'testsuite:abcd1234')
 
     def test_object_deleted(self):
-        object_path = os.path.join(ocfl.OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
+        object_path = os.path.join(OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
         os.makedirs(object_path)
         inventory = copy.deepcopy(SIMPLE_INVENTORY)
         inventory['head'] = 'v4'
@@ -154,10 +157,10 @@ class TestOcfl(unittest.TestCase):
         with open(os.path.join(object_path, 'inventory.json'), 'wb') as f:
             f.write(json.dumps(inventory).encode('utf8'))
         with self.assertRaises(ocfl.ObjectDeleted):
-            ocfl.Object('testsuite:abcd1234')
+            ocfl.Object(OCFL_ROOT, 'testsuite:abcd1234')
 
     def test_object(self):
-        object_path = os.path.join(ocfl.OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
+        object_path = os.path.join(OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
         os.makedirs(object_path)
         with open(os.path.join(object_path, 'inventory.json'), 'wb') as f:
             f.write(json.dumps(SIMPLE_INVENTORY).encode('utf8'))
@@ -181,7 +184,7 @@ class TestOcfl(unittest.TestCase):
             f.write(b'abcdefg')
         with open(rels_int_path, 'wb') as f:
             f.write(rels_int.encode('utf8'))
-        o = ocfl.Object('testsuite:abcd1234')
+        o = ocfl.Object(OCFL_ROOT, 'testsuite:abcd1234')
         self.assertEqual(o.get_path_to_file('renamed_file.txt'), file_txt_path)
         with self.assertRaises(FileNotFoundError):
             o.get_path_to_file('file.txt', version='v2')
@@ -261,7 +264,7 @@ class TestOcfl(unittest.TestCase):
         })
 
     def test_root_inventory_error(self):
-        object_path = os.path.join(ocfl.OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
+        object_path = os.path.join(OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
         os.makedirs(object_path)
         v1_content_path = os.path.join(object_path, 'v1', 'content')
         v3_content_path = os.path.join(object_path, 'v3', 'content')
@@ -280,16 +283,16 @@ class TestOcfl(unittest.TestCase):
 
         #no version inventory to fallback to
         with self.assertRaises(ocfl.InventoryError):
-            ocfl.Object('testsuite:abcd1234')
+            ocfl.Object(OCFL_ROOT, 'testsuite:abcd1234')
 
         #now verify that version inventory fallback works
         inventory_path = os.path.join(object_path, 'v5', 'inventory.json')
         with open(inventory_path, 'wb') as f:
             f.write(json.dumps(SIMPLE_INVENTORY).encode('utf8'))
-        o = ocfl.Object('testsuite:abcd1234')
+        o = ocfl.Object(OCFL_ROOT, 'testsuite:abcd1234')
         self.assertEqual(o.head_version, 'v5')
         self.assertEqual(sorted(o.filenames), ['RELS-INT', 'RELS-INT2', 'renamed_file.txt', 'something', 'something else'])
 
         #check that we can turn off the feature to fall back to the version directory
         with self.assertRaises(ocfl.InventoryError):
-            ocfl.Object('testsuite:abcd1234', fallback_to_version_directory=False)
+            ocfl.Object(OCFL_ROOT, 'testsuite:abcd1234', fallback_to_version_directory=False)
