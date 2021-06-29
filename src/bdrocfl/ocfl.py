@@ -161,7 +161,7 @@ def utc_datetime_from_string(date_string):
 
 class Object:
 
-    def __init__(self, storage_root, pid, fallback_to_version_directory=True):
+    def __init__(self, storage_root, pid, fallback_to_version_directory=True, deleted_ok=False):
         self.pid = pid
         self._fallback_to_version_directory = fallback_to_version_directory
         self.object_path = object_path(storage_root, self.pid)
@@ -169,7 +169,7 @@ class Object:
             raise ObjectNotFound()
         self._inventory = self._get_inventory(self.object_path)
         self.head_version = self._inventory['head']
-        if not self._inventory['versions'][self.head_version]['state']:
+        if not (deleted_ok or self._inventory['versions'][self.head_version]['state']):
             raise ObjectDeleted()
         self._files_info = None
         self._rels_int_root = None
