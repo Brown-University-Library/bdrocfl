@@ -144,6 +144,8 @@ class TestOcfl(unittest.TestCase):
         test_utils.create_deleted_object(OCFL_ROOT, pid='testsuite:abcd1234')
         with self.assertRaises(ocfl.ObjectDeleted):
             ocfl.Object(OCFL_ROOT, 'testsuite:abcd1234')
+        obj = ocfl.Object(OCFL_ROOT, 'testsuite:abcd1234', deleted_ok=True)
+        self.assertEqual(obj.pid, 'testsuite:abcd1234')
 
     def test_object(self):
         object_path = os.path.join(OCFL_ROOT, '1b5', '64f', '1ff', 'testsuite%3aabcd1234')
