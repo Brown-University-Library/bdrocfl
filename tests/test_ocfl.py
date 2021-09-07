@@ -316,3 +316,18 @@ class TestTestUtils(unittest.TestCase):
             inventory_data = f.read().decode('utf8')
         inventory = json.loads(inventory_data)
         self.assertEqual(inventory['versions'][inventory['head']]['state'], {})
+
+
+class TestWalkRepo(unittest.TestCase):
+
+    def test_1(self):
+        extensions_path = os.path.join(OCFL_ROOT, 'extensions')
+        os.mkdir(extensions_path)
+        pids = ['testsuite:abcd1234', 'testsuite:efgh5678']
+        for p in pids:
+            test_utils.create_object(OCFL_ROOT, p)
+        listed_pids = sorted(list(ocfl.walk_repo(OCFL_ROOT)))
+        self.assertEqual(listed_pids, pids)
+        listed_pids = sorted(list(ocfl.walk_repo(OCFL_ROOT, top_ntuple_segment='80a')))
+        self.assertEqual(listed_pids, ['testsuite:efgh5678'])
+        os.rmdir(extensions_path)
