@@ -317,3 +317,29 @@ class Object:
             if info['state'] == 'A' or include_deleted:
                 files_info[filename] = {field: value for field, value in info.items() if field in fields}
         return files_info
+
+
+def walk_repo(storage_root, top_ntuple_segment=None):
+    '''generate all the pids in a repo
+    root/
+        extensions/
+        1b5/
+            64f/
+                1ff/
+                    testsuite%3aabcd1234/'''
+    with os.scandir(storage_root) as root_it:
+        for root_entry in root_it:
+            if root_entry.is_dir() and root_entry.name != 'extensions':
+                if top_ntuple_segment and root_entry.name != top_ntuple_segment:
+                    continue
+                root_entry_path = os.path.join(storage_root, root_entry.name)
+                with os.scandir(root_entry_path) as next_it:
+                    for next_entry in next_it:
+                        next_entry_path = os.path.join(root_entry_path, next_entry.name)
+                        with os.scandir(next_entry_path) as another_it:
+                            for another_entry in another_it:
+                                another_entry_path = os.path.join(next_entry_path, another_entry.name)
+                                #now we're down to scanning object root directories
+                                with os.scandir(another_entry_path) as object_root_it:
+                                    for object_entry in object_root_it:
+                                        yield object_entry.name.replace('%3a', ':')
