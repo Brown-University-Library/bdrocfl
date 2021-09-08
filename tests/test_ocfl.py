@@ -320,6 +320,14 @@ class TestTestUtils(unittest.TestCase):
 
 class TestWalkRepo(unittest.TestCase):
 
+    def setUp(self):
+        try:
+            shutil.rmtree(os.path.join(OCFL_ROOT, 'extensions'))
+            shutil.rmtree(os.path.join(OCFL_ROOT, '1b5'))
+            shutil.rmtree(os.path.join(OCFL_ROOT, '80a'))
+        except FileNotFoundError:
+            pass
+
     def test_1(self):
         extensions_path = os.path.join(OCFL_ROOT, 'extensions')
         os.mkdir(extensions_path)
@@ -331,3 +339,62 @@ class TestWalkRepo(unittest.TestCase):
         listed_pids = sorted(list(ocfl.walk_repo(OCFL_ROOT, top_ntuple_segment='80a')))
         self.assertEqual(listed_pids, ['testsuite:efgh5678'])
         os.rmdir(extensions_path)
+
+
+class TestFixity(unittest.TestCase):
+
+    def setUp(self):
+        self.pid = 'testsuite:abcd1234'
+        self.object_root = ocfl.object_path(OCFL_ROOT, self.pid)
+        try:
+            shutil.rmtree(self.object_root)
+        except FileNotFoundError:
+            pass
+
+    def test_root_inventory_error(self):
+        os.makedirs(self.object_root)
+        inventory = test_utils.get_base_inventory(self.pid)
+        inventory['head'] = 'v1'
+        with open(os.path.join(self.object_root, 'inventory.json'), 'wb') as f:
+            f.write(json.dumps(inventory).encode('utf8'))
+        with open(os.path.join(self.object_root, 'inventory.json.sha512'), 'wb') as f:
+            f.write('1234'.encode('utf8'))
+        obj = ocfl.Object(OCFL_ROOT, self.pid, deleted_ok=True)
+        with self.assertRaises(ocfl.FixityError) as cm:
+            ocfl.check_fixity(obj)
+        err_msg = 'root inventory.json: calculated=fe33ab2d057b4969879f083118b217a8d22e30b856e1a4e892222768e99e549bc1a27515914c1c39f8449fe92b89e8e1158974578993ce81bcac8fc7dfe7c657; recorded=1234'
+        self.assertEqual(str(cm.exception), err_msg)
+
+    def test_version_inventory_error(self):
+        #create valid v1, then invalid v2
+        inventory = test_utils.get_base_inventory(self.pid)
+        v1_version = test_utils.get_base_version()
+        files = [('MODS', b'1234')]
+        test_utils.add_version_to_inventory(inventory, 'v1', v1_version, files)
+        test_utils.write_inventory_files(self.object_root, inventory)
+        test_utils.write_content_files(self.object_root, 'v1', files)
+        v2_version = test_utils.get_base_version()
+        test_utils.add_version_to_inventory(inventory, 'v2', v2_version, [])
+        test_utils.write_inventory_files(self.object_root, inventory)
+        with open(os.path.join(self.object_root, 'v2', 'inventory.json.sha512'), 'wb') as f:
+            f.write('1234'.encode('utf8'))
+        obj = ocfl.Object(OCFL_ROOT, self.pid, deleted_ok=True)
+        with self.assertRaises(ocfl.FixityError) as cm:
+            ocfl.check_fixity(obj)
+        err_msg = 'v2 inventory.json: calculated=a9a782de7ab523740d1f5c4a9c929215c1ab02b848957b37b4ba3825384f4dfcd3b97c333777a87aaaa1cbfc466eaf6338c4310422c386fc73327313dd9fc040; recorded=1234'
+        self.assertEqual(str(cm.exception), err_msg)
+
+    def test_content_file_error(self):
+        #write files out correctly, then update one of the files without changing manifest
+        test_utils.create_object(OCFL_ROOT, self.pid, files=[('file1', b'abcd')])
+        with open(os.path.join(self.object_root, 'v1', 'content', 'file1'), 'wb') as f:
+            f.write(b'1234')
+        obj = ocfl.Object(OCFL_ROOT, self.pid)
+        with self.assertRaises(ocfl.FixityError) as cm:
+            ocfl.check_fixity(obj)
+        self.assertEqual(str(cm.exception), 'v1/content/file1: calculated=d404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db; recorded=d8022f2060ad6efd297ab73dcc5355c9b214054b0d1776a136a669d26a7d3b14f73aa0d0ebff19ee333368f0164b6419a96da49e3e481753e7e96b716bdccb6f')
+
+    def test_valid_object(self):
+        test_utils.create_object(OCFL_ROOT, self.pid, files=[('file1', b'abcd'), ('file2', b'1234')])
+        obj = ocfl.Object(OCFL_ROOT, self.pid)
+        ocfl.check_fixity(obj)

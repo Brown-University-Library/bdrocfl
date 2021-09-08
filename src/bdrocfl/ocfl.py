@@ -18,7 +18,11 @@ class InventoryError(RuntimeError):
 class DateTimeError(RuntimeError):
     pass
 
+class FixityError(RuntimeError):
+    pass
 
+
+NUM_BYTES_TO_READ = 20_000_000 # ~20Mb
 RELS_INT_NS = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'ns1': 'info:fedora/fedora-system:def/model#'}
 DNG_MIMETYPE = 'image/x-adobe-dng'
 JS_MIMETYPE = 'application/javascript'
@@ -343,3 +347,37 @@ def walk_repo(storage_root, top_ntuple_segment=None):
                                 with os.scandir(another_entry_path) as object_root_it:
                                     for object_entry in object_root_it:
                                         yield object_entry.name.replace('%3a', ':')
+
+
+def _check_inventory_fixity(directory, label):
+    with open(os.path.join(directory, 'inventory.json'), 'rb') as f:
+        inventory_bytes = f.read()
+    inventory_hash = hashlib.sha512(inventory_bytes).hexdigest()
+    with open(os.path.join(directory, 'inventory.json.sha512'), 'rb') as f:
+        recorded_inventory_hash = f.read().decode('utf8').split()[0]
+    if inventory_hash != recorded_inventory_hash:
+        raise FixityError(f'{label} inventory.json: calculated={inventory_hash}; recorded={recorded_inventory_hash}')
+
+
+def check_fixity(obj):
+    #check root and version directory inventories
+    _check_inventory_fixity(obj.object_path, 'root')
+    with os.scandir(obj.object_path) as it:
+        for entry in it:
+            if entry.is_dir() and entry.name.startswith('v'):
+                version_dir_path = os.path.join(obj.object_path, entry.name)
+                _check_inventory_fixity(version_dir_path, label=entry.name)
+    #check all content files
+    for recorded_checksum, file_paths in obj._inventory['manifest'].items():
+        for file_path in file_paths:
+            sha512 = hashlib.sha512()
+            with open(os.path.join(obj.object_path, file_path), 'rb') as f:
+                while True:
+                    file_bytes = f.read(NUM_BYTES_TO_READ)
+                    if file_bytes:
+                        sha512.update(file_bytes)
+                    else:
+                        break
+            file_checksum = sha512.hexdigest()
+            if file_checksum != recorded_checksum:
+                raise FixityError(f'{file_path}: calculated={file_checksum}; recorded={recorded_checksum}')
