@@ -22,6 +22,7 @@ class FixityError(RuntimeError):
     pass
 
 
+NUM_BYTES_TO_READ = 20_000_000 # ~20Mb
 RELS_INT_NS = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'ns1': 'info:fedora/fedora-system:def/model#'}
 DNG_MIMETYPE = 'image/x-adobe-dng'
 JS_MIMETYPE = 'application/javascript'
@@ -369,8 +370,14 @@ def check_fixity(obj):
     #check all content files
     for recorded_checksum, file_paths in obj._inventory['manifest'].items():
         for file_path in file_paths:
+            sha512 = hashlib.sha512()
             with open(os.path.join(obj.object_path, file_path), 'rb') as f:
-                file_bytes = f.read()
-            file_checksum = hashlib.sha512(file_bytes).hexdigest()
+                while True:
+                    file_bytes = f.read(NUM_BYTES_TO_READ)
+                    if file_bytes:
+                        sha512.update(file_bytes)
+                    else:
+                        break
+            file_checksum = sha512.hexdigest()
             if file_checksum != recorded_checksum:
                 raise FixityError(f'{file_path}: calculated={file_checksum}; recorded={recorded_checksum}')
