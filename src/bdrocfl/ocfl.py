@@ -348,28 +348,24 @@ def walk_repo(storage_root, top_ntuple_segment=None):
                                         yield object_entry.name.replace('%3a', ':')
 
 
-def check_fixity(obj):
-    #check root inventory.json
-    with open(os.path.join(obj.object_path, 'inventory.json'), 'rb') as f:
+def _check_inventory_fixity(directory, label):
+    with open(os.path.join(directory, 'inventory.json'), 'rb') as f:
         inventory_bytes = f.read()
     inventory_hash = hashlib.sha512(inventory_bytes).hexdigest()
-    with open(os.path.join(obj.object_path, 'inventory.json.sha512'), 'rb') as f:
+    with open(os.path.join(directory, 'inventory.json.sha512'), 'rb') as f:
         recorded_inventory_hash = f.read().decode('utf8').split()[0]
     if inventory_hash != recorded_inventory_hash:
-        raise FixityError(f'root inventory.json: calculated={inventory_hash}; recorded={recorded_inventory_hash}')
-    #check inventory.json in each version directory
+        raise FixityError(f'{label} inventory.json: calculated={inventory_hash}; recorded={recorded_inventory_hash}')
+
+
+def check_fixity(obj):
+    #check root and version directory inventories
+    _check_inventory_fixity(obj.object_path, 'root')
     with os.scandir(obj.object_path) as it:
         for entry in it:
             if entry.is_dir() and entry.name.startswith('v'):
-                version_dir = entry.name
                 version_dir_path = os.path.join(obj.object_path, entry.name)
-                with open(os.path.join(version_dir_path, 'inventory.json'), 'rb') as f:
-                    inventory_bytes = f.read()
-                inventory_hash = hashlib.sha512(inventory_bytes).hexdigest()
-                with open(os.path.join(version_dir_path, 'inventory.json.sha512'), 'rb') as f:
-                    recorded_inventory_hash = f.read().decode('utf8').split()[0]
-                if inventory_hash != recorded_inventory_hash:
-                    raise FixityError(f'{version_dir} inventory.json: calculated={inventory_hash}; recorded={recorded_inventory_hash}')
+                _check_inventory_fixity(version_dir_path, label=entry.name)
     #check all content files
     for recorded_checksum, file_paths in obj._inventory['manifest'].items():
         for file_path in file_paths:
