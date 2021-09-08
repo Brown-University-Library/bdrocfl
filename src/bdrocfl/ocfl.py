@@ -18,6 +18,9 @@ class InventoryError(RuntimeError):
 class DateTimeError(RuntimeError):
     pass
 
+class FixityError(RuntimeError):
+    pass
+
 
 RELS_INT_NS = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'ns1': 'info:fedora/fedora-system:def/model#'}
 DNG_MIMETYPE = 'image/x-adobe-dng'
@@ -343,3 +346,35 @@ def walk_repo(storage_root, top_ntuple_segment=None):
                                 with os.scandir(another_entry_path) as object_root_it:
                                     for object_entry in object_root_it:
                                         yield object_entry.name.replace('%3a', ':')
+
+
+def check_fixity(obj):
+    #check root inventory.json
+    with open(os.path.join(obj.object_path, 'inventory.json'), 'rb') as f:
+        inventory_bytes = f.read()
+    inventory_hash = hashlib.sha512(inventory_bytes).hexdigest()
+    with open(os.path.join(obj.object_path, 'inventory.json.sha512'), 'rb') as f:
+        recorded_inventory_hash = f.read().decode('utf8').split()[0]
+    if inventory_hash != recorded_inventory_hash:
+        raise FixityError(f'root inventory.json: calculated={inventory_hash}; recorded={recorded_inventory_hash}')
+    #check inventory.json in each version directory
+    with os.scandir(obj.object_path) as it:
+        for entry in it:
+            if entry.is_dir() and entry.name.startswith('v'):
+                version_dir = entry.name
+                version_dir_path = os.path.join(obj.object_path, entry.name)
+                with open(os.path.join(version_dir_path, 'inventory.json'), 'rb') as f:
+                    inventory_bytes = f.read()
+                inventory_hash = hashlib.sha512(inventory_bytes).hexdigest()
+                with open(os.path.join(version_dir_path, 'inventory.json.sha512'), 'rb') as f:
+                    recorded_inventory_hash = f.read().decode('utf8').split()[0]
+                if inventory_hash != recorded_inventory_hash:
+                    raise FixityError(f'{version_dir} inventory.json: calculated={inventory_hash}; recorded={recorded_inventory_hash}')
+    #check all content files
+    for recorded_checksum, file_paths in obj._inventory['manifest'].items():
+        for file_path in file_paths:
+            with open(os.path.join(obj.object_path, file_path), 'rb') as f:
+                file_bytes = f.read()
+            file_checksum = hashlib.sha512(file_bytes).hexdigest()
+            if file_checksum != recorded_checksum:
+                raise FixityError(f'{file_path}: calculated={file_checksum}; recorded={recorded_checksum}')
