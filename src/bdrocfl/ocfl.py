@@ -170,11 +170,11 @@ class Object:
         self._fallback_to_version_directory = fallback_to_version_directory
         self.object_path = object_path(storage_root, self.pid)
         if not os.path.exists(self.object_path):
-            raise ObjectNotFound()
+            raise ObjectNotFound(f'{self.pid} not found')
         self._inventory = self._get_inventory(self.object_path)
         self.head_version = self._inventory['head']
         if not (deleted_ok or self._inventory['versions'][self.head_version]['state']):
-            raise ObjectDeleted()
+            raise ObjectDeleted(f'{self.pid} deleted')
         self._files_info = None
         self._rels_int_root = None
 
